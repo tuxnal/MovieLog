@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#050505">
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieLog | Pro Collector</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22></text></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #050505; color: #e2e8f0;
+            background-image: radial-gradient(circle at top right, #1e1b4b, transparent 400px);
+            min-height: 100vh; display: flex; flex-direction: column;
+            overflow-x: hidden;
+        }
+        .main-content { flex: 1; }
+        .glass { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        .nav-btn { 
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08); color: #94a3b8;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateY(-2px); }
+        
+        .lang-btn { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; filter: grayscale(1) opacity(0.4); transition: all 0.3s ease; border: 2px solid transparent; }
+        .lang-btn.active { filter: grayscale(0) opacity(1); border-color: #3b82f6; transform: scale(1.1); }
+
+        .welcome-screen {
+            position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center;
+            padding: 20px; backdrop-filter: blur(10px);
+        }
+
+        #sort-select {
+            appearance: none; background-color: #111827; color: white;
+            border: 1px solid rgba(255,255,255,0.1); padding-right: 2.5rem;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 0.8rem center; background-size: 1rem;
+        }
+
+        .movie-card { transition: transform 0.2s ease; cursor: pointer; position: relative; }
+        .movie-card:hover { transform: translateY(-4px); }
+        
+        .badge-format { 
+            font-size: 7px; font-weight: 900; padding: 2px 0; border-radius: 3px; 
+            text-transform: uppercase; letter-spacing: 0.02em; width: 24px; text-align: center;
+            line-height: 1;
+        }
+        .badge-4k { background-color: #9333ea !important; color: white !important; }
+        .badge-br { background-color: #2563eb !important; color: white !important; }
+        .badge-dvd { background-color: #d97706 !important; color: white !important; }
+
+        .filter-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .filter-btn.active { 
+            background-color: #2563eb !important; 
+            border-color: #3b82f6 !important; 
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .user-rating-star {
+            position: relative; display: flex; align-items: center; justify-content: center;
+            color: #fbbf24; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            width: 24px; height: 24px;
+        }
+        .user-rating-number {
+            position: absolute; color: black; font-size: 7px; font-weight: 900;
+            top: 55%; left: 50%; transform: translate(-50%, -50%);
+        }
+
+        .modal-container { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: none; align-items: center; justify-content: center;
+            z-index: 9999; background: rgba(0, 0, 0, 0.85); 
+            backdrop-filter: blur(8px);
+        }
+        .modal-content-wrapper {
+            max-width: 850px; width: 95%; max-height: 90vh;
+            overflow-y: auto; border-radius: 24px;
+            animation: modalAppear 0.3s ease-out;
+            position: relative;
+        }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin-custom { animation: spin 1s linear infinite; }
+        #sync-progress { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div id="api-modal" class="welcome-screen hidden">
+        <div class="glass max-w-lg w-full p-8 rounded-3xl shadow-2xl border-blue-500/20">
+            <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Movie<span class="text-blue-500">Log</span></h2>
+            <p class="text-gray-400 text-sm mb-6">Conecta con TMDB para buscar metadatos.</p>
+            <input type="text" id="api-key-input" placeholder="Pega tu clave aquí..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
+            <button onclick="saveApiKey()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar</button>
+        </div>
+    </div>
+
+    <div class="main-content max-w-6xl mx-auto w-full">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div>
+                <h1 class="text-5xl font-extrabold text-white tracking-tighter">Movie<span class="text-blue-500">Log</span></h1>
+                <p id="ui-subtitle" class="text-gray-400 mt-1 uppercase text-xs tracking-[0.2em] font-bold"></p>
+            </div>
+            
+            <div class="flex items-center bg-gray-900/80 p-2.5 rounded-2xl border border-gray-800 shadow-2xl gap-2">
+                <div class="flex gap-2 px-3 border-r border-gray-800">
+                    <button onclick="changeLanguage('es')" id="btn-es" class="lang-btn"><img src="https://flagcdn.com/w80/es.png"></button>
+                    <button onclick="changeLanguage('en')" id="btn-en" class="lang-btn"><img src="https://flagcdn.com/w80/us.png"></button>
+                </div>
+                <div class="flex gap-1.5">
+                    <button onclick="syncLibrary()" class="nav-btn hover:text-amber-500" title="Sincronizar"><i data-lucide="refresh-cw" id="sync-icon" class="w-4 h-4"></i></button>
+                    <button onclick="exportCSV()" class="nav-btn hover:text-blue-400" title="Exportar CSV"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i></button>
+                    <button onclick="exportJSON()" class="nav-btn hover:text-emerald-400" title="Exportar JSON"><i data-lucide="file-json" class="w-4 h-4"></i></button>
+                    <button onclick="triggerImport()" class="nav-btn hover:text-purple-400" title="Importar"><i data-lucide="upload" class="w-4 h-4"></i></button>
+                    <div class="w-px h-6 bg-gray-800 mx-1 self-center"></div>
+                    <button onclick="resetApiKey()" class="nav-btn hover:text-blue-500" title="Ajustes API"><i data-lucide="settings" class="w-4 h-4"></i></button>
+                    <button onclick="clearCollection()" class="nav-btn hover:text-red-500" title="Borrar Todo"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+                <input type="file" id="import-input" class="hidden" accept=".json,.csv" onchange="handleImport(event)">
+            </div>
+        </header>
+
+        <div id="sync-progress" class="mb-8 glass p-4 rounded-xl flex items-center justify-between border-amber-500/20">
+            <div class="flex items-center gap-4">
+                <div class="w-8 h-8 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+                <div>
+                    <p class="text-xs font-bold uppercase text-amber-500 tracking-widest" id="sync-status">Sincronizando...</p>
+                    <p class="text-[10px] text-gray-500 truncate max-w-[200px]" id="sync-movie-name"></p>
+                </div>
+            </div>
+            <div class="text-right font-black text-xl text-white"><span id="sync-count">0</span><span id="sync-total" class="text-gray-600 text-sm">/ 0</span></div>
+        </div>
+
+        <section class="glass p-1 rounded-2xl mb-12 shadow-2xl">
+            <div class="relative flex items-center">
+                <input type="text" id="movie-search" class="w-full p-5 bg-transparent border-none focus:ring-0 text-lg placeholder-gray-600 text-white outline-none">
+                <div class="flex gap-2 mr-4">
+                    <button onclick="clearSearchResults()" id="ui-clear" class="text-gray-500 hover:text-white px-2 py-2 text-sm font-bold uppercase"></button>
+                    <button onclick="searchTMDB()" id="ui-search-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg uppercase text-xs"></button>
+                </div>
+            </div>
+            <div id="search-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4 empty:hidden border-t border-gray-800/50"></div>
+        </section>
+
+        <section>
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-8 gap-6">
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 uppercase tracking-tight"><span id="ui-library-title"></span> <span id="total-count" class="ml-2 text-blue-500">0</span></h2>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="setFilter('all')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase active" id="filter-all">TODOS <span id="count-all"></span></button>
+                        <button onclick="setFilter('4K')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-4K">4K <span id="count-4K"></span></button>
+                        <button onclick="setFilter('BR')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-BR">BR <span id="count-BR"></span></button>
+                        <button onclick="setFilter('DVD')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-DVD">DVD <span id="count-DVD"></span></button>
+                        <button onclick="toggleSeenFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-seen-btn"></button>
+                        <button onclick="toggleToWatchFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-towatch-btn"></button>
+                        <button onclick="toggleFavFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-fav-btn"></button>
+                    </div>
+                </div>
+                <div class="flex gap-2 w-full lg:w-auto">
+                    <input type="text" id="library-filter" onkeyup="renderLibrary()" class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 text-xs font-bold text-white outline-none focus:border-blue-500 transition-colors flex-1 lg:w-48">
+                    <select id="sort-select" onchange="renderLibrary()" class="rounded-xl px-4 py-2 text-xs font-bold outline-none cursor-pointer"></select>
+                </div>
+            </div>
+            <div id="movie-library" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
+        </section>
+    </div>
+
+    <div id="detail-modal" class="modal-container" onclick="closeModal()">
+        <div class="modal-content-wrapper glass" onclick="event.stopPropagation()">
+            <div id="modal-content" class="flex flex-col md:flex-row min-h-[450px]"></div>
+        </div>
+    </div>
+
+    <script>
+        let TMDB_API_KEY = localStorage.getItem('tmdb-api-key') || "";
+        const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+        const IMG_URL = "https://image.tmdb.org/t/p/w500";
+        let currentLang = localStorage.getItem('movie-log-lang') || 'es';
+        let movieLibrary = JSON.parse(localStorage.getItem('my-movie-collection')) || [];
+        let currentFilter = 'all';
+        let seenFilterActive = false;
+        let toWatchFilterActive = false;
+        let favFilterActive = false;
+
+        const i18n = {
+            es: { subtitle: "Physical Media Database", library: "Mi Colección", all: "Todos", clear: "Limpiar", search: "Buscar", noDesc: "Sin descripción.", movie: "Película", tv: "Serie", remove: "Eliminar", confirmDelete: "¿Eliminar?", confirmReset: "¿Borrar todo?", syncStatus: "Sincronizando...", sortName: "Título (A-Z)", sortNew: "Año (Nuevas)", sortOld: "Año (Antiguas)", sortRating: "Valoración (IMDb)", sortUserRating: "Mi Valoración", empty: "Vacío.", libFilter: "Filtrar...", directorLabel: "Director", castLabel: "Reparto Principal", added: "Añadido", seenFilter: "Vistas", toWatch: "Por Ver", favorites: "Favoritos", userRatingLabel: "Mi Valoración Personal", errorID: "Error: ID inválido o película no encontrada.", errorDelete: "Borrar película corrupta", close: "Cerrar" },
+            en: { subtitle: "Physical Media Database", library: "My Collection", all: "All", clear: "Clear", search: "Search", noDesc: "No description.", movie: "Movie", tv: "Series", remove: "Remove", confirmDelete: "Remove?", confirmReset: "Reset?", syncStatus: "Syncing...", sortName: "Title (A-Z)", sortNew: "Year (Newest)", sortOld: "Year (Oldest)", sortRating: "Rating (IMDb)", sortUserRating: "My Rating", empty: "Empty.", libFilter: "Filter...", directorLabel: "Director", castLabel: "Top Cast", added: "Added", seenFilter: "Watched", toWatch: "To Watch", favorites: "Favorites", userRatingLabel: "My Personal Rating", errorID: "Error: Invalid ID or movie not found.", errorDelete: "Remove corrupted movie", close: "Close" }
+        };
+
+        function checkApiKey() { document.getElementById('api-modal').classList.toggle('hidden', !!TMDB_API_KEY); }
+        function saveApiKey() { 
+            const key = document.getElementById('api-key-input').value.trim();
+            if (key.length < 10) return;
+            localStorage.setItem('tmdb-api-key', key); TMDB_API_KEY = key; checkApiKey(); 
+        }
+        function resetApiKey() { if(confirm("¿Cambiar API Key?")) { localStorage.removeItem('tmdb-api-key'); TMDB_API_KEY = ""; checkApiKey(); } }
+
+        async function syncLibrary() {
+            if (!TMDB_API_KEY) return checkApiKey();
+            if (movieLibrary.length === 0) return;
+
+            const btnIcon = document.getElementById('sync-icon');
+            const progBar = document.getElementById('sync-progress');
+            
+            btnIcon.classList.add('animate-spin-custom');
+            progBar.style.display = 'flex';
+            document.getElementById('sync-total').innerText = `/ ${movieLibrary.length}`;
+            document.getElementById('sync-status').innerText = i18n[currentLang].syncStatus;
+
+            let updatedCount = 0;
+            await new Promise(r => setTimeout(r, 100));
+
+            for (let i = 0; i < movieLibrary.length; i++) {
+                const m = movieLibrary[i];
+                document.getElementById('sync-count').innerText = i + 1;
+                document.getElementById('sync-movie-name').innerText = m.title;
+
+                if (!m.poster || m.id.toString().includes('imported')) {
+                    try {
+                        const q = encodeURIComponent(m.title);
+                        const res = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${q}`);
+                        const data = await res.json();
+                        
+                        if (data.results && data.results.length > 0) {
+                            const match = data.results.find(r => r.poster_path) || data.results[0];
+                            movieLibrary[i] = { 
+                                ...m, 
+                                id: match.id.toString(), 
+                                type: match.media_type || 'movie', 
+                                poster: match.poster_path ? IMG_URL + match.poster_path : m.poster, 
+                                rating: match.vote_average || m.rating, 
+                                title: match.title || match.name || m.title, 
+                                year: (match.release_date || match.first_air_date || m.year).toString().split('-')[0] 
+                            };
+                            updatedCount++;
+                            localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary));
+                        }
+                    } catch (e) { console.error(e); }
+                }
+                await new Promise(r => setTimeout(r, 80));
+            }
+            
+            btnIcon.classList.remove('animate-spin-custom');
+            renderLibrary();
+            
+            const msg = currentLang === 'es' 
+                ? `Sincronización finalizada. ${updatedCount} actualizados.` 
+                : `Sync complete. ${updatedCount} updated.`;
+            
+            document.getElementById('sync-status').innerText = msg;
+            document.getElementById('sync-movie-name').innerText = "";
+
+            setTimeout(() => { 
+                progBar.style.display = 'none'; 
+            }, 3000);
+        }
+
+        function renderLibrary() {
+            const lib = document.getElementById('movie-library');
+            const list = getFilteredList();
+            const textFilter = document.getElementById('library-filter').value.toLowerCase();
+            const filtered = list.filter(m => m.title.toLowerCase().includes(textFilter));
+
+            document.getElementById('total-count').innerText = movieLibrary.length;
+            document.getElementById('count-all').innerText = `(${movieLibrary.length})`;
+            document.getElementById('count-4K').innerText = `(${movieLibrary.filter(m => m.format === '4K').length})`;
+            document.getElementById('count-BR').innerText = `(${movieLibrary.filter(m => m.format === 'BR').length})`;
+            document.getElementById('count-DVD').innerText = `(${movieLibrary.filter(m => m.format === 'DVD').length})`;
+            document.getElementById('filter-seen-btn').innerText = `${i18n[currentLang].seenFilter} (${movieLibrary.filter(m => m.seen).length})`;
+            document.getElementById('filter-towatch-btn').innerText = `${i18n[currentLang].toWatch} (${movieLibrary.filter(m => !m.seen).length})`;
+            document.getElementById('filter-fav-btn').innerText = ` ${i18n[currentLang].favorites} (${movieLibrary.filter(m => m.userRating >= 8.5).length})`;
+
+            lib.innerHTML = filtered.map(m => `
+                <div class="movie-card group">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 bg-gray-900 shadow-lg">
+                        <img onclick="showDetails('${m.id}', '${m.type}')" src="${m.poster || 'https://via.placeholder.com/500x750?text=No+Poster'}" class="w-full h-full object-cover">
+                        <div class="absolute top-1 right-1 flex flex-col gap-1 items-end w-8">
+                            <span class="badge-format ${m.format === '4K' ? 'badge-4k' : m.format === 'BR' ? 'badge-br' : 'badge-dvd'}">${m.format}</span>
+                            <button onclick="toggleSeen('${m.id}', '${m.format}')" class="w-6 h-6 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-sm border border-white/10 ${m.seen ? 'text-green-400' : 'text-gray-400'} hover:scale-110 transition-all">
+                                <i data-lucide="${m.seen ? 'eye' : 'eye-off'}" class="w-4.5 h-4.5"></i>
+                            </button>
+                            ${m.userRating > 0 ? `<div class="user-rating-star"><i data-lucide="star" class="w-6 h-6 fill-amber-400"></i><span class="user-rating-number font-black">${m.userRating}</span></div>` : ''}
+                        </div>
+                    </div>
+                    <div onclick="showDetails('${m.id}', '${m.type}')">
+                        <h4 class="font-bold text-[11px] truncate text-white uppercase px-1">${m.title}</h4>
+                        <p class="text-[10px] text-gray-500 font-bold px-1">${m.year} <span class="text-amber-500/80 ml-1"> ${m.rating ? m.rating.toFixed(1) : '0.0'}</span></p>
+                    </div>
+                </div>`).join('');
+            lucide.createIcons();
+        }
+
+        async function showDetails(id, type) {
+            const modal = document.getElementById('detail-modal');
+            const content = document.getElementById('modal-content');
+            modal.style.display = 'flex';
+            const lang = i18n[currentLang];
+            try {
+                const res = await fetch(`${TMDB_BASE_URL}/${type}/${id}?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&append_to_response=credits`);
+                if(!res.ok) throw new Error();
+                const d = await res.json();
+                const movie = movieLibrary.find(m => m.id == id);
+                const curRat = movie ? (movie.userRating || 0) : 0;
+                const dir = type === 'movie' ? d.credits.crew.find(p => p.job === 'Director')?.name : d.created_by?.[0]?.name || '---';
+                const castList = d.credits.cast.slice(0, 5).map(a => `<div class="mb-1">${a.name}</div>`).join('');
+
+                content.innerHTML = `
+                    <div class="w-full md:w-1/3 p-6 bg-black/20">
+                        <img src="${IMG_URL + d.poster_path}" class="w-full rounded-xl shadow-2xl border border-white/10 mb-6">
+                        <button onclick="removeMovieById('${id}')" class="w-full py-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-600 font-black text-[10px] uppercase border border-red-500/20">${lang.remove}</button>
+                    </div>
+                    <div class="flex-1 p-8 md:p-12 relative">
+                        <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+                        <h2 class="text-3xl font-black text-white uppercase mb-2 leading-none">${d.title || d.name}</h2>
+                        <div class="text-blue-500 font-black text-xs uppercase mb-6">${type === 'tv' ? lang.tv : lang.movie} • ${((d.release_date || d.first_air_date || "")).split('-')[0]}</div>
+                        <div class="mb-6 p-4 bg-white/5 rounded-2xl border border-white/5">
+                            <label class="block text-[9px] font-black uppercase text-blue-500 mb-2">${lang.userRatingLabel}</label>
+                            <div class="flex items-center gap-4">
+                                <input type="range" min="0" max="10" step="0.5" value="${curRat}" oninput="this.nextElementSibling.innerText = this.value" onchange="updateUserRating('${id}', this.value)" class="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                                <span class="text-xl font-black text-white min-w-[3ch]">${curRat}</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-8 pt-6 border-t border-white/5">
+                            <div><span class="text-gray-500 block text-[12px] uppercase font-extrabold mb-1.5 tracking-wider">${lang.directorLabel}</span><p class="text-white text-[12px] font-bold">${dir}</p></div>
+                            <div><span class="text-gray-500 block text-[12px] uppercase font-extrabold mb-1.5 tracking-wider">${lang.castLabel}</span><div class="text-white text-[12px] font-bold leading-relaxed">${castList}</div></div>
+                        </div>
+                        <p class="text-gray-400 text-sm mt-6 leading-relaxed italic">"${d.overview || lang.noDesc}"</p>
+                    </div>`;
+                lucide.createIcons();
+            } catch (e) { 
+                content.innerHTML = `
+                <div class="p-20 text-center w-full">
+                    <p class="text-red-500 font-bold mb-4">${lang.errorID}</p>
+                    <button onclick="removeMovieById('${id}')" class="bg-red-600 text-white px-6 py-2 rounded-xl font-black uppercase text-xs">${lang.errorDelete}</button>
+                    <button onclick="closeModal()" class="ml-4 text-gray-500 uppercase text-xs font-bold">${lang.close}</button>
+                </div>`;
+            }
+        }
+
+        async function searchTMDB() { 
+            const q = document.getElementById('movie-search').value.trim(); if(!q) return; 
+            const resDiv = document.getElementById('search-results'); 
+            resDiv.innerHTML = `<div class="col-span-full py-4 text-center text-blue-500 animate-pulse text-[10px] font-black uppercase">Buscando...</div>`; 
+            try { 
+                const r = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${encodeURIComponent(q)}`); 
+                const d = await r.json(); 
+                resDiv.innerHTML = d.results.filter(i => i.poster_path).slice(0,9).map(i => { 
+                    const t = i.title || i.name; const date = (i.release_date || i.first_air_date || "").split('-')[0]; 
+                    const btn = (fmt, cls) => `<button onclick="addMovie(this, '${i.id}', '${i.media_type || 'movie'}', '${t.replace(/'/g,"")}', '${date}', '${IMG_URL+i.poster_path}', '${i.vote_average}')" class="badge-format ${cls} flex-1 py-1 rounded text-[9px] font-black uppercase transition-all">${movieLibrary.some(m => m.id == i.id && m.format === fmt) ? i18n[currentLang].added : fmt}</button>`;
+                    return `<div class="bg-gray-800/40 p-3 rounded-xl flex items-center gap-4 border border-white/5"><img src="${IMG_URL+i.poster_path}" class="w-12 h-16 object-cover rounded shadow-md"><div class="flex-1 overflow-hidden"><h4 class="font-bold text-[10px] text-white uppercase truncate">${t}</h4><div class="flex gap-1 mt-2">${btn('4K','badge-4k')}${btn('BR','badge-br')}${btn('DVD','badge-dvd')}</div></div></div>`; 
+                }).join(''); 
+            } catch(e) {} 
+        }
+
+        function addMovie(btn, id, type, title, year, poster, rating) { 
+            const format = btn.innerText; if (movieLibrary.some(m => m.id === id && m.format === format)) return;
+            movieLibrary.push({ id, type, title, year, poster, format, rating: parseFloat(rating), seen: false, userRating: 0 }); 
+            localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); 
+            btn.innerText = i18n[currentLang].added; btn.disabled = true; renderLibrary(); 
+        }
+
+        function getFilteredList() { 
+            let list = [...movieLibrary]; 
+            if (currentFilter !== 'all') list = list.filter(m => m.format === currentFilter); 
+            if (seenFilterActive) list = list.filter(m => m.seen);
+            if (toWatchFilterActive) list = list.filter(m => !m.seen);
+            if (favFilterActive) list = list.filter(m => m.userRating >= 8.5);
+            const v = document.getElementById('sort-select').value; 
+            list.sort((a,b) => {
+                if(v === 'name-asc') return a.title.localeCompare(b.title);
+                if(v === 'year-desc') return b.year - a.year;
+                if(v === 'year-asc') return a.year - b.year;
+                if(v === 'rating-desc') return (b.rating || 0) - (a.rating || 0);
+                if(v === 'user-rating-desc') return (b.userRating || 0) - (a.userRating || 0);
+                return 0;
+            });
+            return list; 
+        }
+
+        function toggleSeen(id, format) { 
+            const m = movieLibrary.find(m => m.id === id && m.format === format); 
+            if(m) { m.seen = !m.seen; localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); renderLibrary(); }
+        }
+        
+        function updateUserRating(id, rating) { 
+            const val = parseFloat(rating);
+            movieLibrary = movieLibrary.map(m => {
+                if (m.id == id) { return { ...m, userRating: val, seen: val > 0 ? true : m.seen }; }
+                return m;
+            });
+            localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); renderLibrary(); 
+        }
+
+        function closeModal() { document.getElementById('detail-modal').style.display = 'none'; }
+        
+        function removeMovieById(id) { 
+            movieLibrary = movieLibrary.filter(m => m.id != id); 
+            localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); 
+            closeModal(); renderLibrary(); 
+        }
+
+        function updateUI() {
+            const l = i18n[currentLang];
+            document.getElementById('ui-subtitle').innerText = l.subtitle;
+            document.getElementById('ui-clear').innerText = l.clear;
+            document.getElementById('ui-search-btn').innerText = l.search;
+            document.getElementById('ui-library-title').innerText = l.library;
+            document.getElementById('filter-all').childNodes[0].textContent = l.all.toUpperCase() + " ";
+            document.getElementById('movie-search').placeholder = currentLang === 'es' ? "Busca títulos..." : "Search titles...";
+            document.getElementById('sort-select').innerHTML = `<option value="name-asc">${l.sortName}</option><option value="year-desc">${l.sortNew}</option><option value="year-asc">${l.sortOld}</option><option value="rating-desc">${l.sortRating}</option><option value="user-rating-desc">${l.sortUserRating}</option>`;
+            document.getElementById('btn-es').classList.toggle('active', currentLang === 'es');
+            document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
+        }
+
+        function changeLanguage(l) { currentLang = l; localStorage.setItem('movie-log-lang', l); updateUI(); renderLibrary(); }
+        function setFilter(f) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => { if(b.id !== 'filter-seen-btn' && b.id !== 'filter-towatch-btn' && b.id !== 'filter-fav-btn') b.classList.toggle('active', b.id === `filter-${f}`); }); renderLibrary(); }
+        
+        function toggleSeenFilter() { 
+            seenFilterActive = !seenFilterActive; 
+            if (seenFilterActive) { toWatchFilterActive = false; favFilterActive = false; }
+            document.getElementById('filter-towatch-btn').classList.remove('active');
+            document.getElementById('filter-fav-btn').classList.remove('active');
+            document.getElementById('filter-seen-btn').classList.toggle('active', seenFilterActive); 
+            renderLibrary(); 
+        }
+        function toggleToWatchFilter() {
+            toWatchFilterActive = !toWatchFilterActive;
+            if (toWatchFilterActive) { seenFilterActive = false; favFilterActive = false; }
+            document.getElementById('filter-seen-btn').classList.remove('active');
+            document.getElementById('filter-fav-btn').classList.remove('active');
+            document.getElementById('filter-towatch-btn').classList.toggle('active', toWatchFilterActive);
+            renderLibrary();
+        }
+        function toggleFavFilter() {
+            favFilterActive = !favFilterActive;
+            if (favFilterActive) { seenFilterActive = false; toWatchFilterActive = false; }
+            document.getElementById('filter-seen-btn').classList.remove('active');
+            document.getElementById('filter-towatch-btn').classList.remove('active');
+            document.getElementById('filter-fav-btn').classList.toggle('active', favFilterActive);
+            renderLibrary();
+        }
+        
+        function exportCSV() { let csv = "Título,Año,Formato,Rating,Visto,Nota\n" + movieLibrary.map(m => `"${m.title}",${m.year},${m.format},${m.rating},${m.seen?"SÍ":"NO"},${m.userRating}`).join("\n"); const b = new Blob([csv], {type: 'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "coleccion.csv"; a.click(); }
+        function exportJSON() { const b = new Blob([JSON.stringify(movieLibrary, null, 2)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "backup.json"; a.click(); }
+        
+        function triggerImport() { document.getElementById('import-input').click(); }
+        function handleImport(e) {
+            const f = e.target.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => { 
+                try { 
+                    const data = JSON.parse(ev.target.result); 
+                    movieLibrary = data.map(m => ({ ...m, id: m.id || 'imported-'+Math.random().toString(36).substr(2,9) }));
+                    localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); 
+                    renderLibrary(); updateUI(); 
+                } catch(e){ alert("Error"); }
+            };
+            r.readAsText(f);
+        }
+        function clearCollection() { if(confirm(i18n[currentLang].confirmReset)) { movieLibrary = []; localStorage.removeItem('my-movie-collection'); renderLibrary(); updateUI(); }}
+        function clearSearchResults() { document.getElementById('search-results').innerHTML=''; document.getElementById('movie-search').value=''; }
+        document.getElementById('movie-search').addEventListener('keypress', (e) => { if(e.key==='Enter') searchTMDB(); });
+        document.addEventListener('DOMContentLoaded', () => { checkApiKey(); updateUI(); renderLibrary(); });
+        
+        if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registrado con éxito'))
+            .catch(err => console.error('Error al registrar el SW', err));
+    });
+}
+    </script>
+</body>
+</html>

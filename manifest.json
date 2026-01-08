@@ -1,0 +1,15 @@
+{
+  "name": "MovieLog Pro Collector",
+  "short_name": "MovieLog",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2503/2503508.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
