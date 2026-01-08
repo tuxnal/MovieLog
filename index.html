@@ -13,6 +13,9 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://accounts.google.com/gsi/client" onload="gapiInit()" async defer></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoad()" async defer></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { 
@@ -103,8 +106,23 @@
         <div class="glass max-w-lg w-full p-8 rounded-3xl shadow-2xl border-blue-500/20">
             <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Movie<span class="text-blue-500">Log</span></h2>
             <p class="text-gray-400 text-sm mb-6">Conecta con TMDB para buscar metadatos.</p>
-            <input type="text" id="api-key-input" placeholder="Pega tu clave aquí..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
-            <button onclick="saveApiKey()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar</button>
+            <input type="text" id="api-key-input" placeholder="Pega tu clave TMDB aquí..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
+            <button onclick="saveApiKey()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar TMDB</button>
+        </div>
+    </div>
+
+    <div id="google-config-modal" class="modal-container" onclick="this.style.display='none'">
+        <div class="glass max-w-lg w-full p-8 rounded-3xl shadow-2xl border-purple-500/20" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Ajustes <span class="text-purple-500">Google Cloud</span></h2>
+            <p class="text-gray-400 text-xs mb-6 uppercase tracking-widest font-bold">Configura tu Drive Privado</p>
+            
+            <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Google Client ID</label>
+            <input type="text" id="google-client-id-input" placeholder="000000-xxxx.apps.googleusercontent.com" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-purple-500 mb-4 text-xs">
+            
+            <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Google API Key</label>
+            <input type="text" id="google-api-key-input" placeholder="AIzaSy..." class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-purple-500 mb-6 text-xs">
+            
+            <button onclick="saveGoogleKeys()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar y Activar Nube</button>
         </div>
     </div>
 
@@ -121,6 +139,8 @@
                     <button onclick="changeLanguage('en')" id="btn-en" class="lang-btn"><img src="https://flagcdn.com/w80/us.png"></button>
                 </div>
                 <div class="flex gap-1.5">
+                    <button onclick="handleCloudAction()" class="nav-btn hover:text-purple-400" id="cloud-btn" title="Google Drive"><i data-lucide="cloud" class="w-4 h-4"></i></button>
+                    <div class="w-px h-6 bg-gray-800 mx-1 self-center"></div>
                     <button onclick="syncLibrary()" class="nav-btn hover:text-amber-500" title="Sincronizar"><i data-lucide="refresh-cw" id="sync-icon" class="w-4 h-4"></i></button>
                     <button onclick="exportCSV()" class="nav-btn hover:text-blue-400" title="Exportar CSV"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i></button>
                     <button onclick="exportJSON()" class="nav-btn hover:text-emerald-400" title="Exportar JSON"><i data-lucide="file-json" class="w-4 h-4"></i></button>
@@ -185,7 +205,11 @@
     </div>
 
     <script>
+        // --- VARIABLES DE CONFIGURACIÓN ---
         let TMDB_API_KEY = localStorage.getItem('tmdb-api-key') || "";
+        let GOOGLE_CLIENT_ID = localStorage.getItem('google-client-id') || "";
+        let GOOGLE_API_KEY = localStorage.getItem('google-api-key') || "";
+        
         const TMDB_BASE_URL = "https://api.themoviedb.org/3";
         const IMG_URL = "https://image.tmdb.org/t/p/w500";
         let currentLang = localStorage.getItem('movie-log-lang') || 'es';
@@ -195,11 +219,16 @@
         let toWatchFilterActive = false;
         let favFilterActive = false;
 
+        // Google Drive State
+        let tokenClient;
+        let accessToken = null;
+
         const i18n = {
             es: { subtitle: "Physical Media Database", library: "Mi Colección", all: "Todos", clear: "Limpiar", search: "Buscar", noDesc: "Sin descripción.", movie: "Película", tv: "Serie", remove: "Eliminar", confirmDelete: "¿Eliminar?", confirmReset: "¿Borrar todo?", syncStatus: "Sincronizando...", sortName: "Título (A-Z)", sortNew: "Año (Nuevas)", sortOld: "Año (Antiguas)", sortRating: "Valoración (IMDb)", sortUserRating: "Mi Valoración", empty: "Vacío.", libFilter: "Filtrar...", directorLabel: "Director", castLabel: "Reparto Principal", added: "Añadido", seenFilter: "Vistas", toWatch: "Por Ver", favorites: "Favoritos", userRatingLabel: "Mi Valoración Personal", errorID: "Error: ID inválido o película no encontrada.", errorDelete: "Borrar película corrupta", close: "Cerrar" },
             en: { subtitle: "Physical Media Database", library: "My Collection", all: "All", clear: "Clear", search: "Search", noDesc: "No description.", movie: "Movie", tv: "Series", remove: "Remove", confirmDelete: "Remove?", confirmReset: "Reset?", syncStatus: "Syncing...", sortName: "Title (A-Z)", sortNew: "Year (Newest)", sortOld: "Year (Oldest)", sortRating: "Rating (IMDb)", sortUserRating: "My Rating", empty: "Empty.", libFilter: "Filter...", directorLabel: "Director", castLabel: "Top Cast", added: "Added", seenFilter: "Watched", toWatch: "To Watch", favorites: "Favorites", userRatingLabel: "My Personal Rating", errorID: "Error: Invalid ID or movie not found.", errorDelete: "Remove corrupted movie", close: "Close" }
         };
 
+        // --- GESTIÓN DE APIS ---
         function checkApiKey() { document.getElementById('api-modal').classList.toggle('hidden', !!TMDB_API_KEY); }
         function saveApiKey() { 
             const key = document.getElementById('api-key-input').value.trim();
@@ -208,66 +237,125 @@
         }
         function resetApiKey() { if(confirm("¿Cambiar API Key?")) { localStorage.removeItem('tmdb-api-key'); TMDB_API_KEY = ""; checkApiKey(); } }
 
+        function saveGoogleKeys() {
+            const cid = document.getElementById('google-client-id-input').value.trim();
+            const aky = document.getElementById('google-api-key-input').value.trim();
+            if(cid && aky) {
+                localStorage.setItem('google-client-id', cid);
+                localStorage.setItem('google-api-key', aky);
+                GOOGLE_CLIENT_ID = cid; GOOGLE_API_KEY = aky;
+                document.getElementById('google-config-modal').style.display = 'none';
+                location.reload(); // Recargar para inicializar Google con las nuevas llaves
+            }
+        }
+
+        // --- LÓGICA DE GOOGLE DRIVE (AppDataFolder) ---
+        function gapiInit() {
+            if (!GOOGLE_CLIENT_ID) return;
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/drive.appdata',
+                callback: (response) => { accessToken = response.access_token; handleCloudSync(); },
+            });
+        }
+        function gapiLoad() { if(GOOGLE_API_KEY) gapi.load('client', () => gapi.client.init({apiKey: GOOGLE_API_KEY, discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]})); }
+
+        async function handleCloudAction() {
+            if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
+                document.getElementById('google-config-modal').style.display = 'flex';
+                return;
+            }
+            tokenClient.requestAccessToken();
+        }
+
+        async function handleCloudSync() {
+            const action = confirm(currentLang === 'es' ? "¿Quieres SUBIR tu colección a la nube? (Cancelar para DESCARGAR la copia de la nube)" : "Upload to cloud? (Cancel to DOWNLOAD from cloud)");
+            if (action) {
+                await uploadToDrive();
+            } else {
+                await downloadFromDrive();
+            }
+        }
+
+        async function uploadToDrive() {
+            const fileContent = JSON.stringify(movieLibrary);
+            const metadata = { name: 'movielog_backup.json', parents: ['appDataFolder'] };
+            const formData = new FormData();
+            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            formData.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+            try {
+                // Primero buscamos si ya existe para actualizarlo
+                const search = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder', { headers: { Authorization: `Bearer ${accessToken}` } });
+                const list = await search.json();
+                const existingFile = list.files.find(f => f.name === 'movielog_backup.json');
+
+                let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+                let method = 'POST';
+                if (existingFile) {
+                    url = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=multipart`;
+                    method = 'PATCH';
+                }
+
+                await fetch(url, { method, headers: { Authorization: `Bearer ${accessToken}` }, body: formData });
+                alert(currentLang === 'es' ? "¡Copia subida con éxito!" : "Backup uploaded!");
+            } catch (e) { alert("Error al subir a Drive"); }
+        }
+
+        async function downloadFromDrive() {
+            try {
+                const search = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder', { headers: { Authorization: `Bearer ${accessToken}` } });
+                const list = await search.json();
+                const file = list.files.find(f => f.name === 'movielog_backup.json');
+                if (!file) return alert("No hay copia en la nube.");
+
+                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
+                const data = await res.json();
+                if (confirm(currentLang === 'es' ? `¿Restaurar ${data.length} películas de la nube?` : `Restore ${data.length} movies?`)) {
+                    movieLibrary = data;
+                    localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary));
+                    renderLibrary(); updateUI();
+                }
+            } catch (e) { alert("Error al descargar de Drive"); }
+        }
+
+        // --- LÓGICA DE SINCRONIZACIÓN TMDB ---
         async function syncLibrary() {
             if (!TMDB_API_KEY) return checkApiKey();
             if (movieLibrary.length === 0) return;
-
             const btnIcon = document.getElementById('sync-icon');
             const progBar = document.getElementById('sync-progress');
-            
             btnIcon.classList.add('animate-spin-custom');
             progBar.style.display = 'flex';
             document.getElementById('sync-total').innerText = `/ ${movieLibrary.length}`;
             document.getElementById('sync-status').innerText = i18n[currentLang].syncStatus;
-
             let updatedCount = 0;
-            await new Promise(r => setTimeout(r, 100));
-
             for (let i = 0; i < movieLibrary.length; i++) {
                 const m = movieLibrary[i];
                 document.getElementById('sync-count').innerText = i + 1;
                 document.getElementById('sync-movie-name').innerText = m.title;
-
                 if (!m.poster || m.id.toString().includes('imported')) {
                     try {
                         const q = encodeURIComponent(m.title);
                         const res = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${q}`);
                         const data = await res.json();
-                        
                         if (data.results && data.results.length > 0) {
                             const match = data.results.find(r => r.poster_path) || data.results[0];
-                            movieLibrary[i] = { 
-                                ...m, 
-                                id: match.id.toString(), 
-                                type: match.media_type || 'movie', 
-                                poster: match.poster_path ? IMG_URL + match.poster_path : m.poster, 
-                                rating: match.vote_average || m.rating, 
-                                title: match.title || match.name || m.title, 
-                                year: (match.release_date || match.first_air_date || m.year).toString().split('-')[0] 
-                            };
+                            movieLibrary[i] = { ...m, id: match.id.toString(), type: match.media_type || 'movie', poster: match.poster_path ? IMG_URL + match.poster_path : m.poster, rating: match.vote_average || m.rating, title: match.title || match.name || m.title, year: (match.release_date || match.first_air_date || m.year).toString().split('-')[0] };
                             updatedCount++;
                             localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary));
                         }
-                    } catch (e) { console.error(e); }
+                    } catch (e) {}
                 }
                 await new Promise(r => setTimeout(r, 80));
             }
-            
             btnIcon.classList.remove('animate-spin-custom');
             renderLibrary();
-            
-            const msg = currentLang === 'es' 
-                ? `Sincronización finalizada. ${updatedCount} actualizados.` 
-                : `Sync complete. ${updatedCount} updated.`;
-            
-            document.getElementById('sync-status').innerText = msg;
-            document.getElementById('sync-movie-name').innerText = "";
-
-            setTimeout(() => { 
-                progBar.style.display = 'none'; 
-            }, 3000);
+            document.getElementById('sync-status').innerText = currentLang === 'es' ? `Listo. ${updatedCount} actualizados.` : `Done. ${updatedCount} updated.`;
+            setTimeout(() => { progBar.style.display = 'none'; }, 3000);
         }
 
+        // --- RENDER Y FILTROS (BASE ABSOLUTA) ---
         function renderLibrary() {
             const lib = document.getElementById('movie-library');
             const list = getFilteredList();
@@ -310,13 +398,11 @@
             const lang = i18n[currentLang];
             try {
                 const res = await fetch(`${TMDB_BASE_URL}/${type}/${id}?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&append_to_response=credits`);
-                if(!res.ok) throw new Error();
                 const d = await res.json();
                 const movie = movieLibrary.find(m => m.id == id);
                 const curRat = movie ? (movie.userRating || 0) : 0;
                 const dir = type === 'movie' ? d.credits.crew.find(p => p.job === 'Director')?.name : d.created_by?.[0]?.name || '---';
                 const castList = d.credits.cast.slice(0, 5).map(a => `<div class="mb-1">${a.name}</div>`).join('');
-
                 content.innerHTML = `
                     <div class="w-full md:w-1/3 p-6 bg-black/20">
                         <img src="${IMG_URL + d.poster_path}" class="w-full rounded-xl shadow-2xl border border-white/10 mb-6">
@@ -340,14 +426,7 @@
                         <p class="text-gray-400 text-sm mt-6 leading-relaxed italic">"${d.overview || lang.noDesc}"</p>
                     </div>`;
                 lucide.createIcons();
-            } catch (e) { 
-                content.innerHTML = `
-                <div class="p-20 text-center w-full">
-                    <p class="text-red-500 font-bold mb-4">${lang.errorID}</p>
-                    <button onclick="removeMovieById('${id}')" class="bg-red-600 text-white px-6 py-2 rounded-xl font-black uppercase text-xs">${lang.errorDelete}</button>
-                    <button onclick="closeModal()" class="ml-4 text-gray-500 uppercase text-xs font-bold">${lang.close}</button>
-                </div>`;
-            }
+            } catch (e) { closeModal(); }
         }
 
         async function searchTMDB() { 
@@ -423,6 +502,7 @@
             document.getElementById('sort-select').innerHTML = `<option value="name-asc">${l.sortName}</option><option value="year-desc">${l.sortNew}</option><option value="year-asc">${l.sortOld}</option><option value="rating-desc">${l.sortRating}</option><option value="user-rating-desc">${l.sortUserRating}</option>`;
             document.getElementById('btn-es').classList.toggle('active', currentLang === 'es');
             document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
+            if(GOOGLE_CLIENT_ID) document.getElementById('cloud-btn').classList.add('text-purple-500');
         }
 
         function changeLanguage(l) { currentLang = l; localStorage.setItem('movie-log-lang', l); updateUI(); renderLibrary(); }
@@ -465,38 +545,18 @@
                 try { 
                     const content = ev.target.result;
                     let data = [];
-
                     if (f.name.endsWith('.csv')) {
                         const lines = content.split('\n');
                         for (let i = 1; i < lines.length; i++) {
                             if (!lines[i].trim()) continue;
                             const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                            data.push({
-                                title: parts[0].replace(/"/g, ''),
-                                year: parts[1],
-                                format: parts[2],
-                                rating: parseFloat(parts[3]) || 0,
-                                seen: parts[4] === "SÍ",
-                                userRating: parseFloat(parts[5]) || 0,
-                                id: 'imported-' + Math.random().toString(36).substr(2, 9),
-                                type: 'movie'
-                            });
+                            data.push({ title: parts[0].replace(/"/g, ''), year: parts[1], format: parts[2], rating: parseFloat(parts[3]) || 0, seen: parts[4] === "SÍ", userRating: parseFloat(parts[5]) || 0, id: 'imported-' + Math.random().toString(36).substr(2, 9), type: 'movie' });
                         }
-                    } else {
-                        data = JSON.parse(content); 
-                    }
-
-                    movieLibrary = data.map(m => ({ 
-                        ...m, 
-                        id: m.id || 'imported-' + Math.random().toString(36).substr(2, 9) 
-                    }));
-                    
+                    } else { data = JSON.parse(content); }
+                    movieLibrary = data.map(m => ({ ...m, id: m.id || 'imported-' + Math.random().toString(36).substr(2, 9) }));
                     localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); 
-                    renderLibrary(); 
-                    updateUI(); 
-                } catch(e) { 
-                    alert("Error al importar el archivo. Verifica el formato."); 
-                }
+                    renderLibrary(); updateUI(); 
+                } catch(e) { alert("Error al importar."); }
             };
             r.readAsText(f);
         }
@@ -504,13 +564,18 @@
         function clearCollection() { if(confirm(i18n[currentLang].confirmReset)) { movieLibrary = []; localStorage.removeItem('my-movie-collection'); renderLibrary(); updateUI(); }}
         function clearSearchResults() { document.getElementById('search-results').innerHTML=''; document.getElementById('movie-search').value=''; }
         document.getElementById('movie-search').addEventListener('keypress', (e) => { if(e.key==='Enter') searchTMDB(); });
-        document.addEventListener('DOMContentLoaded', () => { checkApiKey(); updateUI(); renderLibrary(); });
         
+        document.addEventListener('DOMContentLoaded', () => { 
+            checkApiKey(); 
+            updateUI(); 
+            renderLibrary(); 
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registrado con éxito'))
-                    .catch(err => console.error('Error al registrar el SW', err));
+                    .then(reg => console.log('SW ok'))
+                    .catch(err => console.log('SW error'));
             });
         }
     </script>
