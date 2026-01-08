@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MovieLog | Pro Collector</title>
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22></text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22> </text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -103,7 +103,7 @@
         <div class="glass max-w-lg w-full p-8 rounded-3xl shadow-2xl border-blue-500/20">
             <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Movie<span class="text-blue-500">Log</span></h2>
             <p class="text-gray-400 text-sm mb-6">Conecta con TMDB para buscar metadatos.</p>
-            <input type="text" id="api-key-input" placeholder="Pega tu clave aquí..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
+            <input type="text" id="api-key-input" placeholder="Pega tu clave aquÃ­..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
             <button onclick="saveApiKey()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar</button>
         </div>
     </div>
@@ -196,7 +196,7 @@
         let favFilterActive = false;
 
         const i18n = {
-            es: { subtitle: "Physical Media Database", library: "Mi Colección", all: "Todos", clear: "Limpiar", search: "Buscar", noDesc: "Sin descripción.", movie: "Película", tv: "Serie", remove: "Eliminar", confirmDelete: "¿Eliminar?", confirmReset: "¿Borrar todo?", syncStatus: "Sincronizando...", sortName: "Título (A-Z)", sortNew: "Año (Nuevas)", sortOld: "Año (Antiguas)", sortRating: "Valoración (IMDb)", sortUserRating: "Mi Valoración", empty: "Vacío.", libFilter: "Filtrar...", directorLabel: "Director", castLabel: "Reparto Principal", added: "Añadido", seenFilter: "Vistas", toWatch: "Por Ver", favorites: "Favoritos", userRatingLabel: "Mi Valoración Personal", errorID: "Error: ID inválido o película no encontrada.", errorDelete: "Borrar película corrupta", close: "Cerrar" },
+            es: { subtitle: "Physical Media Database", library: "Mi ColecciÃ³n", all: "Todos", clear: "Limpiar", search: "Buscar", noDesc: "Sin descripciÃ³n.", movie: "PelÃ­cula", tv: "Serie", remove: "Eliminar", confirmDelete: "Â¿Eliminar?", confirmReset: "Â¿Borrar todo?", syncStatus: "Sincronizando...", sortName: "TÃ­tulo (A-Z)", sortNew: "AÃ±o (Nuevas)", sortOld: "AÃ±o (Antiguas)", sortRating: "ValoraciÃ³n (IMDb)", sortUserRating: "Mi ValoraciÃ³n", empty: "VacÃ­o.", libFilter: "Filtrar...", directorLabel: "Director", castLabel: "Reparto Principal", added: "AÃ±adido", seenFilter: "Vistas", toWatch: "Por Ver", favorites: "Favoritos", userRatingLabel: "Mi ValoraciÃ³n Personal", errorID: "Error: ID invÃ¡lido o pelÃ­cula no encontrada.", errorDelete: "Borrar pelÃ­cula corrupta", close: "Cerrar" },
             en: { subtitle: "Physical Media Database", library: "My Collection", all: "All", clear: "Clear", search: "Search", noDesc: "No description.", movie: "Movie", tv: "Series", remove: "Remove", confirmDelete: "Remove?", confirmReset: "Reset?", syncStatus: "Syncing...", sortName: "Title (A-Z)", sortNew: "Year (Newest)", sortOld: "Year (Oldest)", sortRating: "Rating (IMDb)", sortUserRating: "My Rating", empty: "Empty.", libFilter: "Filter...", directorLabel: "Director", castLabel: "Top Cast", added: "Added", seenFilter: "Watched", toWatch: "To Watch", favorites: "Favorites", userRatingLabel: "My Personal Rating", errorID: "Error: Invalid ID or movie not found.", errorDelete: "Remove corrupted movie", close: "Close" }
         };
 
@@ -206,7 +206,7 @@
             if (key.length < 10) return;
             localStorage.setItem('tmdb-api-key', key); TMDB_API_KEY = key; checkApiKey(); 
         }
-        function resetApiKey() { if(confirm("¿Cambiar API Key?")) { localStorage.removeItem('tmdb-api-key'); TMDB_API_KEY = ""; checkApiKey(); } }
+        function resetApiKey() { if(confirm("Â¿Cambiar API Key?")) { localStorage.removeItem('tmdb-api-key'); TMDB_API_KEY = ""; checkApiKey(); } }
 
         async function syncLibrary() {
             if (!TMDB_API_KEY) return checkApiKey();
@@ -257,7 +257,7 @@
             renderLibrary();
             
             const msg = currentLang === 'es' 
-                ? `Sincronización finalizada. ${updatedCount} actualizados.` 
+                ? `SincronizaciÃ³n finalizada. ${updatedCount} actualizados.` 
                 : `Sync complete. ${updatedCount} updated.`;
             
             document.getElementById('sync-status').innerText = msg;
@@ -281,7 +281,7 @@
             document.getElementById('count-DVD').innerText = `(${movieLibrary.filter(m => m.format === 'DVD').length})`;
             document.getElementById('filter-seen-btn').innerText = `${i18n[currentLang].seenFilter} (${movieLibrary.filter(m => m.seen).length})`;
             document.getElementById('filter-towatch-btn').innerText = `${i18n[currentLang].toWatch} (${movieLibrary.filter(m => !m.seen).length})`;
-            document.getElementById('filter-fav-btn').innerText = ` ${i18n[currentLang].favorites} (${movieLibrary.filter(m => m.userRating >= 8.5).length})`;
+            document.getElementById('filter-fav-btn').innerText = `  ${i18n[currentLang].favorites} (${movieLibrary.filter(m => m.userRating >= 8.5).length})`;
 
             lib.innerHTML = filtered.map(m => `
                 <div class="movie-card group">
@@ -297,7 +297,7 @@
                     </div>
                     <div onclick="showDetails('${m.id}', '${m.type}')">
                         <h4 class="font-bold text-[11px] truncate text-white uppercase px-1">${m.title}</h4>
-                        <p class="text-[10px] text-gray-500 font-bold px-1">${m.year} <span class="text-amber-500/80 ml-1"> ${m.rating ? m.rating.toFixed(1) : '0.0'}</span></p>
+                        <p class="text-[10px] text-gray-500 font-bold px-1">${m.year} <span class="text-amber-500/80 ml-1">  ${m.rating ? m.rating.toFixed(1) : '0.0'}</span></p>
                     </div>
                 </div>`).join('');
             lucide.createIcons();
@@ -325,7 +325,7 @@
                     <div class="flex-1 p-8 md:p-12 relative">
                         <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
                         <h2 class="text-3xl font-black text-white uppercase mb-2 leading-none">${d.title || d.name}</h2>
-                        <div class="text-blue-500 font-black text-xs uppercase mb-6">${type === 'tv' ? lang.tv : lang.movie} • ${((d.release_date || d.first_air_date || "")).split('-')[0]}</div>
+                        <div class="text-blue-500 font-black text-xs uppercase mb-6">${type === 'tv' ? lang.tv : lang.movie} â€¢ ${((d.release_date || d.first_air_date || "")).split('-')[0]}</div>
                         <div class="mb-6 p-4 bg-white/5 rounded-2xl border border-white/5">
                             <label class="block text-[9px] font-black uppercase text-blue-500 mb-2">${lang.userRatingLabel}</label>
                             <div class="flex items-center gap-4">
@@ -419,7 +419,7 @@
             document.getElementById('ui-search-btn').innerText = l.search;
             document.getElementById('ui-library-title').innerText = l.library;
             document.getElementById('filter-all').childNodes[0].textContent = l.all.toUpperCase() + " ";
-            document.getElementById('movie-search').placeholder = currentLang === 'es' ? "Busca títulos..." : "Search titles...";
+            document.getElementById('movie-search').placeholder = currentLang === 'es' ? "Busca tÃ­tulos..." : "Search titles...";
             document.getElementById('sort-select').innerHTML = `<option value="name-asc">${l.sortName}</option><option value="year-desc">${l.sortNew}</option><option value="year-asc">${l.sortOld}</option><option value="rating-desc">${l.sortRating}</option><option value="user-rating-desc">${l.sortUserRating}</option>`;
             document.getElementById('btn-es').classList.toggle('active', currentLang === 'es');
             document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
@@ -453,35 +453,66 @@
             renderLibrary();
         }
         
-        function exportCSV() { let csv = "Título,Año,Formato,Rating,Visto,Nota\n" + movieLibrary.map(m => `"${m.title}",${m.year},${m.format},${m.rating},${m.seen?"SÍ":"NO"},${m.userRating}`).join("\n"); const b = new Blob([csv], {type: 'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "coleccion.csv"; a.click(); }
+        function exportCSV() { let csv = "TÃ­tulo,AÃ±o,Formato,Rating,Visto,Nota\n" + movieLibrary.map(m => `"${m.title}",${m.year},${m.format},${m.rating},${m.seen?"SÃ":"NO"},${m.userRating}`).join("\n"); const b = new Blob([csv], {type: 'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "coleccion.csv"; a.click(); }
         function exportJSON() { const b = new Blob([JSON.stringify(movieLibrary, null, 2)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "backup.json"; a.click(); }
         
         function triggerImport() { document.getElementById('import-input').click(); }
+
         function handleImport(e) {
             const f = e.target.files[0]; if (!f) return;
             const r = new FileReader();
             r.onload = (ev) => { 
                 try { 
-                    const data = JSON.parse(ev.target.result); 
-                    movieLibrary = data.map(m => ({ ...m, id: m.id || 'imported-'+Math.random().toString(36).substr(2,9) }));
+                    const content = ev.target.result;
+                    let data = [];
+
+                    if (f.name.endsWith('.csv')) {
+                        const lines = content.split('\n');
+                        for (let i = 1; i < lines.length; i++) {
+                            if (!lines[i].trim()) continue;
+                            const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                            data.push({
+                                title: parts[0].replace(/"/g, ''),
+                                year: parts[1],
+                                format: parts[2],
+                                rating: parseFloat(parts[3]) || 0,
+                                seen: parts[4] === "SÃ",
+                                userRating: parseFloat(parts[5]) || 0,
+                                id: 'imported-' + Math.random().toString(36).substr(2, 9),
+                                type: 'movie'
+                            });
+                        }
+                    } else {
+                        data = JSON.parse(content); 
+                    }
+
+                    movieLibrary = data.map(m => ({ 
+                        ...m, 
+                        id: m.id || 'imported-' + Math.random().toString(36).substr(2, 9) 
+                    }));
+                    
                     localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); 
-                    renderLibrary(); updateUI(); 
-                } catch(e){ alert("Error"); }
+                    renderLibrary(); 
+                    updateUI(); 
+                } catch(e) { 
+                    alert("Error al importar el archivo. Verifica el formato."); 
+                }
             };
             r.readAsText(f);
         }
+
         function clearCollection() { if(confirm(i18n[currentLang].confirmReset)) { movieLibrary = []; localStorage.removeItem('my-movie-collection'); renderLibrary(); updateUI(); }}
         function clearSearchResults() { document.getElementById('search-results').innerHTML=''; document.getElementById('movie-search').value=''; }
         document.getElementById('movie-search').addEventListener('keypress', (e) => { if(e.key==='Enter') searchTMDB(); });
         document.addEventListener('DOMContentLoaded', () => { checkApiKey(); updateUI(); renderLibrary(); });
         
         if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker registrado con éxito'))
-            .catch(err => console.error('Error al registrar el SW', err));
-    });
-}
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registrado con Ã©xito'))
+                    .catch(err => console.error('Error al registrar el SW', err));
+            });
+        }
     </script>
 </body>
 </html>
