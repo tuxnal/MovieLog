@@ -36,7 +36,6 @@
         }
         .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateY(-2px); }
         
-        /* Ajuste de banderas junto al título */
         .lang-btn { width: 24px; height: 24px; border-radius: 50%; overflow: hidden; filter: grayscale(1) opacity(0.3); transition: all 0.3s ease; border: 1.5px solid transparent; flex-shrink: 0; }
         .lang-btn.active { filter: grayscale(0) opacity(1); border-color: #3b82f6; transform: scale(1.1); }
 
@@ -179,9 +178,9 @@
                     <h2 class="text-2xl font-bold mb-4 uppercase tracking-tight"><span id="ui-library-title"></span> <span id="total-count" class="ml-2 text-blue-500">0</span></h2>
                     <div class="flex flex-wrap gap-2">
                         <button onclick="setFilter('all')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase active" id="filter-all">TODOS <span id="count-all"></span></button>
-                        <button onclick="setFilter('4K')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-4K">4K <span id="count-4K"></span></button>
-                        <button onclick="setFilter('BR')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-BR">BR <span id="count-BR"></span></button>
-                        <button onclick="setFilter('DVD')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-DVD">DVD <span id="count-DVD"></span></button>
+                        <button onclick="setFilter('4K')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-4K">4K <span id="count-all"></span></button>
+                        <button onclick="setFilter('BR')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-BR">BR <span id="count-all"></span></button>
+                        <button onclick="setFilter('DVD')" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-DVD">DVD <span id="count-all"></span></button>
                         <button onclick="toggleSeenFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-seen-btn"></button>
                         <button onclick="toggleToWatchFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-towatch-btn"></button>
                         <button onclick="toggleFavFilter()" class="filter-btn px-4 py-2 rounded-xl text-[10px] font-black border border-gray-800 text-gray-400 uppercase" id="filter-fav-btn"></button>
@@ -203,7 +202,6 @@
     </div>
 
     <script>
-        // --- TODA LA LÓGICA PERMANECE IGUAL ---
         let TMDB_API_KEY = localStorage.getItem('tmdb-api-key') || "";
         let GOOGLE_CLIENT_ID = localStorage.getItem('google-client-id') || "";
         let GOOGLE_API_KEY = localStorage.getItem('google-api-key') || "";
@@ -286,7 +284,52 @@
             } catch (e) { closeModal(); }
         }
 
-        async function searchTMDB() { const q = document.getElementById('movie-search').value.trim(); if(!q) return; const resDiv = document.getElementById('search-results'); resDiv.innerHTML = `<div class="col-span-full py-4 text-center text-blue-500 animate-pulse text-[10px] font-black uppercase">Buscando...</div>`; try { const r = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${encodeURIComponent(q)}`); const d = await r.json(); resDiv.innerHTML = d.results.filter(i => i.poster_path).slice(0,9).map(i => { const t = i.title || i.name; const date = (i.release_date || i.first_air_date || "").split('-')[0]; const btn = (fmt, cls) => `<button onclick="addMovie(this, '${i.id}', '${i.media_type || 'movie'}', '${t.replace(/'/g,"")}', '${date}', '${IMG_URL+i.poster_path}', '${i.vote_average}')" class="badge-format ${cls} flex-1 py-1 rounded text-[9px] font-black uppercase transition-all">${movieLibrary.some(m => m.id == i.id && m.format === fmt) ? i18n[currentLang].added : fmt}</button>`; return `<div class="bg-gray-800/40 p-3 rounded-xl flex items-center gap-4 border border-white/5"><img src="${IMG_URL+i.poster_path}" class="w-12 h-16 object-cover rounded shadow-md"><div class="flex-1 overflow-hidden"><h4 class="font-bold text-[10px] text-white uppercase truncate">${t}</h4><div class="flex gap-1 mt-2">${btn('4K','badge-4k')}${btn('BR','badge-br')}${btn('DVD','badge-dvd')}</div></div></div>`; }).join(''); } catch(e) {} }
+        // --- FUNCIÓN DE BÚSQUEDA MEJORADA (Buscador con Año y Director) ---
+        async function searchTMDB() { 
+            const queryInput = document.getElementById('movie-search').value.trim(); 
+            if(!queryInput) return; 
+            
+            const resDiv = document.getElementById('search-results'); 
+            resDiv.innerHTML = `<div class="col-span-full py-4 text-center text-blue-500 animate-pulse text-[10px] font-black uppercase">Buscando...</div>`; 
+            
+            let query = queryInput;
+            let yearFilter = "";
+            const yearMatch = queryInput.match(/\b(19|20)\d{2}\b/);
+            if (yearMatch) {
+                yearFilter = `&primary_release_year=${yearMatch[0]}`;
+                query = queryInput.replace(yearMatch[0], "").trim();
+            }
+
+            try { 
+                const url = `${TMDB_BASE_URL}/search/multi?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${encodeURIComponent(query)}${yearFilter}`;
+                const r = await fetch(url); 
+                const d = await r.json(); 
+                
+                resDiv.innerHTML = d.results.filter(i => i.poster_path || i.profile_path).slice(0,12).map(i => { 
+                    if (i.media_type === 'person') {
+                        return `<div class="col-span-full text-[9px] text-gray-500 uppercase text-center border-b border-white/5 pb-2 mb-2">Resultados para: ${i.name} (Director/Actor)</div>`;
+                    }
+
+                    const t = i.title || i.name; 
+                    const date = (i.release_date || i.first_air_date || "---").split('-')[0]; 
+                    const poster = i.poster_path ? IMG_URL + i.poster_path : 'https://via.placeholder.com/500x750?text=No+Poster';
+                    
+                    const btn = (fmt, cls) => `<button onclick="addMovie(this, '${i.id}', '${i.media_type || 'movie'}', '${t.replace(/'/g,"")}', '${date}', '${poster}', '${i.vote_average}')" class="badge-format ${cls} flex-1 py-1 rounded text-[9px] font-black uppercase transition-all">${movieLibrary.some(m => m.id == i.id && m.format === fmt) ? i18n[currentLang].added : fmt}</button>`;
+                    
+                    return `
+                        <div class="bg-gray-800/40 p-3 rounded-xl flex items-center gap-4 border border-white/5">
+                            <img src="${poster}" class="w-12 h-16 object-cover rounded shadow-md">
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="font-bold text-[10px] text-white uppercase truncate">${t} (${date})</h4>
+                                <div class="flex gap-1 mt-2">${btn('4K','badge-4k')}${btn('BR','badge-br')}${btn('DVD','badge-dvd')}</div>
+                            </div>
+                        </div>`; 
+                }).join(''); 
+            } catch(e) {
+                resDiv.innerHTML = `<div class="col-span-full py-4 text-center text-red-500 text-[10px] font-black uppercase">Error en la búsqueda</div>`;
+            } 
+        }
+
         function addMovie(btn, id, type, title, year, poster, rating) { const format = btn.innerText; if (movieLibrary.some(m => m.id === id && m.format === format)) return; movieLibrary.push({ id, type, title, year, poster, format, rating: parseFloat(rating), seen: false, userRating: 0 }); localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); btn.innerText = i18n[currentLang].added; btn.disabled = true; renderLibrary(); }
         function getFilteredList() { let list = [...movieLibrary]; if (currentFilter !== 'all') list = list.filter(m => m.format === currentFilter); if (seenFilterActive) list = list.filter(m => m.seen); if (toWatchFilterActive) list = list.filter(m => !m.seen); if (favFilterActive) list = list.filter(m => m.userRating >= 8.5); const v = document.getElementById('sort-select').value; list.sort((a,b) => { if(v === 'name-asc') return a.title.localeCompare(b.title); if(v === 'year-desc') return b.year - a.year; if(v === 'year-asc') return a.year - b.year; if(v === 'rating-desc') return (b.rating || 0) - (a.rating || 0); if(v === 'user-rating-desc') return (b.userRating || 0) - (a.userRating || 0); return 0; }); return list; }
         function toggleSeen(id, format) { const m = movieLibrary.find(m => m.id === id && m.format === format); if(m) { m.seen = !m.seen; localStorage.setItem('my-movie-collection', JSON.stringify(movieLibrary)); renderLibrary(); } }
