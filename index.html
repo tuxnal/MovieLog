@@ -105,7 +105,15 @@
     <div id="api-modal" class="welcome-screen hidden">
         <div class="glass max-w-lg w-full p-8 rounded-3xl shadow-2xl border-blue-500/20">
             <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Movie<span class="text-blue-500">Log</span></h2>
-            <p class="text-gray-400 text-sm mb-6">Conecta con TMDB para buscar metadatos.</p>
+            <div class="text-gray-400 text-sm mb-6 space-y-4">
+                <p class="font-bold text-blue-400 uppercase text-[10px] tracking-widest">Configuración TMDB</p>
+                <ol class="list-decimal list-inside text-xs space-y-2 text-gray-400">
+                    <li>Crea una cuenta en <a href="https://themoviedb.org" target="_blank" class="text-white underline">themoviedb.org</a></li>
+                    <li>Ve a <b>Ajustes > API</b> en tu perfil.</li>
+                    <li>Solicita una clave <b>"Developer"</b>.</li>
+                    <li>Copia la <b>Clave de API (v3 auth)</b> y pégala abajo.</li>
+                </ol>
+            </div>
             <input type="text" id="api-key-input" placeholder="Pega tu clave TMDB aquí..." class="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500 mb-6 text-sm">
             <button onclick="saveApiKey()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs">Guardar TMDB</button>
         </div>
@@ -299,15 +307,12 @@
             try { 
                 let results = [];
                 if (isDirectorSearch || isActorSearch) {
-                    // 1. Buscar a la persona
                     const pRes = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}&query=${encodeURIComponent(cleanQuery)}`);
                     const pData = await pRes.json();
                     if (pData.results && pData.results.length > 0) {
                         const personId = pData.results[0].id;
-                        // 2. Buscar sus películas
                         const cRes = await fetch(`${TMDB_BASE_URL}/person/${personId}/movie_credits?api_key=${TMDB_API_KEY}&language=${currentLang === 'es' ? 'es-ES' : 'en-US'}`);
                         const cData = await cRes.json();
-                        
                         if (isDirectorSearch) {
                             results = cData.crew.filter(m => m.job === 'Director');
                         } else {
@@ -316,7 +321,6 @@
                         results = results.sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0)).slice(0, 15);
                     }
                 } else {
-                    // Búsqueda normal de películas con filtro de año si existe
                     let yearFilter = "";
                     const yearMatch = cleanQuery.match(/\b(19|20)\d{2}\b/);
                     if (yearMatch) {
@@ -338,9 +342,7 @@
                     const t = i.title || i.name; 
                     const date = (i.release_date || i.first_air_date || "---").split('-')[0]; 
                     const poster = i.poster_path ? IMG_URL + i.poster_path : 'https://via.placeholder.com/500x750?text=No+Poster';
-                    
                     const btn = (fmt, cls) => `<button onclick="addMovie(this, '${i.id}', '${i.media_type || 'movie'}', '${t.replace(/'/g,"")}', '${date}', '${poster}', '${i.vote_average}')" class="badge-format ${cls} flex-1 py-1 rounded text-[9px] font-black uppercase transition-all">${movieLibrary.some(m => m.id == i.id && m.format === fmt) ? i18n[currentLang].added : fmt}</button>`;
-                    
                     return `
                         <div class="bg-gray-800/40 p-3 rounded-xl flex items-center gap-4 border border-white/5">
                             <img src="${poster}" class="w-12 h-16 object-cover rounded shadow-md">
